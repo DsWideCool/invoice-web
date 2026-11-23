@@ -43,7 +43,7 @@
  * 1. 1280px: 헤더(서비스명 "견적서 관리", "견적서 목록" 메뉴, 테마 토글, "로그아웃" 텍스트 버튼) + 테이블
  * 2. 375px: 헤더는 서비스명 + 아이콘 버튼만, 목록은 카드형
  * 3. 두 폭 모두 document.documentElement.scrollWidth <= innerWidth (가로 스크롤 없음)
- * 4. 테이블 행 클릭 → /invoice/<32자리 ID>, "목록으로" → /admin
+ * 4. 테이블 행 클릭 → /admin/invoices/<32자리 ID>(관리자용 상세: 목록으로·링크 복사·클라이언트 화면), "목록으로" → /admin
  * 5. 에러: NOTION_API_KEY를 잘못된 값으로 서버 실행 → 로그인 후 "견적서 목록을 불러오지 못했습니다" + "다시 시도" 버튼
  *    (예: `NOTION_API_KEY=invalid npx next start -p 3457`, 캐시를 피하려면 .next 삭제 후 빌드)
  * 6. 빈 목록: Notion DB가 비어 있으면 "Notion에 등록된 견적서가 없습니다." 표시
@@ -75,7 +75,7 @@
  * 5. 관리자 목록(375·1280)·로그인·견적서 조회·이용 안내·404를 다크로 스크린샷 확인, 404의 토글은 1개
  * 6. /api/generate-pdf?id=<ID> → 200, Content-Type application/pdf (PDF는 서버 생성이라 테마 무관)
  * 7. emulateMedia media "print" → body 배경 흰색, 카드 흰색, 상태 배지 라이트 색상,
- *    PDF 다운로드·테마 토글·목록으로 버튼 숨김 (배지 transition 때문에 0.5초 대기 후 측정)
+ *    PDF 다운로드·상단 바(신고하기·테마 토글) 숨김 (배지 transition 때문에 0.5초 대기 후 측정)
  */
 
 export {};

@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { getInvoicePath } from "@/lib/invoice-url";
+import { getAdminInvoicePath } from "@/lib/invoice-url";
 import {
   INVOICE_STATUSES,
   type InvoiceListItem,
@@ -111,7 +111,7 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
                 className="bg-card has-[a:hover]:bg-muted/50 flex items-center rounded-lg border transition-colors"
               >
                 <Link
-                  href={getInvoicePath(invoice.id)}
+                  href={getAdminInvoicePath(invoice.id)}
                   className="flex min-w-0 flex-1 items-center gap-3 py-4 pl-4"
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -164,7 +164,7 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
                     <TableCell className="pl-4 font-medium">
                       {/* after: 가상 요소로 링크 영역을 행 전체로 확장 */}
                       <Link
-                        href={getInvoicePath(invoice.id)}
+                        href={getAdminInvoicePath(invoice.id)}
                         className="after:absolute after:inset-0 hover:underline"
                       >
                         {invoice.invoiceNumber || "번호 없음"}

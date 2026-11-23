@@ -24,10 +24,17 @@ import {
   reportCreateSchema,
   type ReportCreateInput,
 } from "@/lib/validations/report";
+import { withReturnPath } from "@/lib/return-path";
 import type { Report } from "@/types/report";
 
 // 신고 완료 화면: 신고 번호 안내 + 내가 작성한 내용
-function ReportSubmitted({ report }: { report: Report }) {
+function ReportSubmitted({
+  report,
+  returnPath,
+}: {
+  report: Report;
+  returnPath: string | null;
+}) {
   return (
     <div className="flex flex-col gap-4">
       <Card className="border-emerald-500/40">
@@ -49,7 +56,10 @@ function ReportSubmitted({ report }: { report: Report }) {
           </p>
           <Button asChild variant="outline">
             <Link
-              href={`/report/lookup?number=${encodeURIComponent(report.reportNumber)}`}
+              href={withReturnPath(
+                `/report/lookup?number=${encodeURIComponent(report.reportNumber)}`,
+                returnPath,
+              )}
             >
               내 신고 조회로 이동
             </Link>
@@ -65,7 +75,12 @@ function ReportSubmitted({ report }: { report: Report }) {
 }
 
 // 신고 작성 폼 (제목·내용·조회 비밀번호)
-export function ReportForm() {
+interface ReportFormProps {
+  // 신고 후 돌아갈 견적서·이용 안내 경로 (검증된 값)
+  returnPath: string | null;
+}
+
+export function ReportForm({ returnPath }: ReportFormProps) {
   const [submitted, setSubmitted] = useState<Report | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -96,7 +111,9 @@ export function ReportForm() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (submitted) return <ReportSubmitted report={submitted} />;
+  if (submitted) {
+    return <ReportSubmitted report={submitted} returnPath={returnPath} />;
+  }
 
   return (
     <Card>

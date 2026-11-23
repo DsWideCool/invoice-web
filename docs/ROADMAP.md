@@ -152,7 +152,7 @@
   - ✅ `src/app/(admin)/admin/` 라우트 그룹: 공통 `layout.tsx`(비밀번호 미설정 안내), `login/page.tsx`(헤더 없는 로그인), `(dashboard)/`의 `layout.tsx`(인증 확인 + 헤더)·`page.tsx`(목록)·`loading.tsx`·`error.tsx`
   - ✅ `/`는 `/admin`으로 리다이렉트(결정 사항 1), 클라이언트 경로 `/invoice/[id]`·`/invoice/guide`·`/api/generate-pdf`는 변경 없음
   - ✅ `src/components/admin/admin-header.tsx`: 서비스명, 메뉴(견적서 목록), 테마 토글 자리, 로그아웃 버튼(`ListActions`에서 이동)
-  - ✅ 상세 페이지 "목록으로" → `/admin`, `not-found.tsx`의 "홈으로" 버튼 제거(이용 안내만 유지)
+  - ✅ 상세 페이지 "목록으로" → `/admin`, `not-found.tsx`의 "홈으로" 버튼 제거(이용 안내만 유지) — 이후 관리자용 상세 `/admin/invoices/[id]`로 분리하고 공개 화면에서는 제거
   - ✅ 미인증 `/admin` 접근 시 `requireAdmin()`이 `/admin/login`으로 리다이렉트(미들웨어 보호·`next` 복귀는 Task 021)
 
 - **Task 017: 링크·테마 공통 유틸 및 프로바이더 골격 정의 (F021, F022)** ✅ - 완료 (`tasks/017-link-theme-foundation.md`)
@@ -210,7 +210,7 @@
 2. 잘못된 비밀번호 입력 → 에러 메시지, 5회 실패 후 차단 메시지 확인
 3. 올바른 비밀번호 로그인 → `/admin` 목록과 관리자 헤더 표시, `next` 파라미터가 있으면 해당 경로로 복귀
 4. `browser_resize` 375px → 카드 목록·가로 스크롤 없음, 1280px → 테이블 표시
-5. 행 클릭 → `/invoice/<id>` 상세 이동, "목록으로" 링크 확인
+5. 행 클릭 → `/admin/invoices/<id>` 관리자용 상세 이동, "목록으로" 링크 확인 (공개 `/invoice/<id>`에는 관리자 링크 없음)
 6. 로그아웃 → `/admin` 재접근 시 로그인 화면
 7. `/admin/login?next=https://example.com` 로그인 → 외부로 이동하지 않음
 

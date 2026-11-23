@@ -1,18 +1,8 @@
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { InvoiceHeader } from "@/components/invoice/invoice-header";
-import { InvoiceItemsTable } from "@/components/invoice/invoice-items-table";
-import { InvoiceSummary } from "@/components/invoice/invoice-summary";
-import { PdfDownloadButton } from "@/components/invoice/pdf-download-button";
+import { InvoiceView } from "@/components/invoice/invoice-view";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { ADMIN_HOME_PATH } from "@/lib/auth/constants";
-import { isAdminAuthenticated } from "@/lib/auth/session";
 import { getInvoice } from "@/lib/services/invoice.service";
 
 interface InvoicePageProps {
@@ -31,51 +21,17 @@ export async function generateMetadata({
   };
 }
 
+// 클라이언트용 견적서 화면: 링크를 받은 사람은 이 견적서만 볼 수 있음
+// 관리자 목록 등 다른 화면으로 가는 링크는 두지 않음 (관리자는 /admin/invoices/[id] 사용)
 export default async function InvoicePage({ params }: InvoicePageProps) {
   const { id } = await params;
   const invoice = await getInvoice(id);
 
   if (!invoice) notFound();
 
-  // 관리자에게만 목록으로 돌아가는 링크 표시 (클라이언트에게는 숨김)
-  const isAdmin = await isAdminAuthenticated();
-
   return (
     <PageContainer className="pt-2 sm:pt-4">
-      {isAdmin && (
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          className="self-start print:hidden"
-        >
-          <Link href={ADMIN_HOME_PATH}>
-            <ArrowLeft />
-            목록으로
-          </Link>
-        </Button>
-      )}
-      <Card>
-        <CardContent className="flex flex-col gap-6">
-          <InvoiceHeader invoice={invoice} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>견적 항목</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <InvoiceItemsTable items={invoice.items} />
-          <Separator />
-          <InvoiceSummary invoice={invoice} />
-        </CardContent>
-      </Card>
-
-      <PdfDownloadButton
-        invoiceId={invoice.id}
-        invoiceNumber={invoice.invoiceNumber}
-      />
+      <InvoiceView invoice={invoice} />
     </PageContainer>
   );
 }

@@ -21,3 +21,8 @@ export function getAppOrigin(): string {
   }
   return window.location.origin;
 }
+
+// 관리자용 견적서 상세 경로 (목록에서 이동, 클라이언트에게는 공유하지 않음)
+export function getAdminInvoicePath(id: string): string {
+  return `/admin/invoices/${id.replace(/-/g, "")}`;
+}
