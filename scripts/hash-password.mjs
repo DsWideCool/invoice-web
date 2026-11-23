@@ -1,9 +1,18 @@
 // 관리자 비밀번호 해시(ADMIN_PASSWORD_HASH)와 세션 서명 키(SESSION_SECRET) 생성 스크립트
-// 사용법: npm run hash-password
-// 비밀번호는 화면에 표시되지 않으며, 출력된 두 값을 Vercel 환경 변수(Sensitive)에 등록한다.
+// 사용법:
+//   npm run hash-password                  → 두 값을 화면에 출력 (직접 Vercel에 등록)
+//   npm run hash-password -- --push        → 화면에 출력하지 않고 Vercel(production·preview)에 바로 등록
+//   npm run hash-password -- --push --targets production
+// 비밀번호는 입력할 때 화면에 표시되지 않는다.
 // 해시 형식은 src/lib/auth/password-hash.ts와 같아야 한다.
 import { randomBytes, scryptSync } from "node:crypto";
-import { stdin, stdout } from "node:process";
+import { argv, stdin, stdout } from "node:process";
+
+import {
+  assertVercelReady,
+  parseTargets,
+  setVercelEnv,
+} from "./lib/vercel-env.mjs";
 
 const MIN_LENGTH = 8;
 const PARAMS = { N: 16384, r: 8, p: 1 };
@@ -64,6 +73,19 @@ function hashPassword(password) {
   ].join(":");
 }
 
+const shouldPush = argv.includes("--push");
+const targets = shouldPush ? parseTargets(argv) : [];
+
+// 비밀번호를 입력받기 전에 Vercel 연결부터 확인 (실패 시 바로 종료)
+if (shouldPush) {
+  try {
+    await assertVercelReady();
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+}
+
 const password = await readHidden("관리자 비밀번호: ");
 if (password.trim().length < MIN_LENGTH) {
   console.error(`비밀번호는 ${MIN_LENGTH}자 이상이어야 합니다.`);
@@ -77,6 +99,30 @@ if (stdin.isTTY) {
   }
 }
 
-console.log("\n아래 두 값을 Vercel 환경 변수(Sensitive)에 등록하세요.\n");
-console.log(`ADMIN_PASSWORD_HASH=${hashPassword(password.trim())}`);
-console.log(`SESSION_SECRET=${randomBytes(32).toString("base64url")}`);
+const values = {
+  ADMIN_PASSWORD_HASH: hashPassword(password.trim()),
+  SESSION_SECRET: randomBytes(32).toString("base64url"),
+};
+
+if (shouldPush) {
+  try {
+    console.log(
+      `\nVercel (${targets.join(", ")})에 등록합니다. 값은 화면에 표시하지 않습니다.`,
+    );
+    for (const [key, value] of Object.entries(values)) {
+      await setVercelEnv(key, value, targets);
+      console.log(`  ✓ ${key}`);
+    }
+    console.log(
+      "\n등록을 마쳤습니다. 다음 배포부터 새 비밀번호가 적용되고 기존 로그인은 모두 끊깁니다.",
+    );
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+} else {
+  console.log("\n아래 두 값을 Vercel 환경 변수(Sensitive)에 등록하세요.\n");
+  for (const [key, value] of Object.entries(values)) {
+    console.log(`${key}=${value}`);
+  }
+}
