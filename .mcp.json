@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "shrimp-task-manager": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "mcp-shrimp-task-manager@1.0.21"],
+      "env": {
+        "DATA_DIR": "C:/Users/nhit/workspace/invoce-web/shrimp_data",
+        "TEMPLATES_USE": "en",
+        "ENABLE_GUI": "false"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@0.0.86"]
+    }
+  }
+}
