@@ -10,12 +10,16 @@
 - **관리자 견적서 목록 (고도화 F020)**: 관리자 전용 레이아웃에서 인증 후 전체 견적서를 확인
 - **클라이언트 링크 복사 (고도화 F021)**: 목록에서 클라이언트에게 보낼 견적서 링크를 원클릭 복사
 - **다크모드 (고도화 F022)**: 시스템 설정 연동 및 수동 전환, 관리자·클라이언트 화면 모두 적용
+- **관리자 해시 비밀번호 로그인 (F023)**: 평문 대신 scrypt 해시 + 세션 서명 키로 배포 환경 관리자 로그인
+- **신고하기·신고 관리 (F024)**: 클라이언트가 신고를 작성·조회하고, 관리자가 접수·답변해 처리완료
 
 ### 아키텍처 원칙
 
 - **데이터 소스는 Notion 하나**: 별도 DB·ORM을 두지 않는다.
 - **서버 전용 Notion 접근**: `src/lib/services/invoice.service.ts`(`server-only`)에서만 Notion API를 호출하고 `unstable_cache`(60초, `invoices` 태그) + React `cache`로 호출 수를 줄인다.
 - **견적서 URL 자체가 접근 수단**이다. 클라이언트 경로 `/invoice/[notionPageId]`와 `/api/generate-pdf`는 고도화 과정에서 변경하지 않는다.
+- **클라이언트 화면은 관리자 화면과 격리**한다. 공개 견적서·신고 화면에는 로그인 여부와 무관하게 `/admin` 링크를 두지 않고, 관리자는 `/admin/invoices/[id]`에서 견적서를 본다.
+- **신고는 Notion 신고 DB(`NOTION_REPORT_DATABASE_ID`)에 저장**하며, 조회 비밀번호는 scrypt 해시로만 저장한다.
 
 ## 고도화 요구사항 정의
 
@@ -79,6 +83,35 @@
 
 - `next-themes`는 `<head>` 인라인 스크립트로 hydration 전에 `<html class="dark">`를 적용해 FOUC를 막고, 로컬 스토리지 저장·시스템 설정 감지·탭 간 동기화를 제공한다. 직접 구현 대비 코드가 적고 shadcn/ui 공식 가이드와 일치한다.
 - 직접 구현 시에도 동일한 인라인 스크립트와 `matchMedia` 구독을 작성해야 하므로 도입을 권장한다.
+
+### F023: 관리자 해시 비밀번호 로그인
+
+**배경**: 배포 환경에 평문 `ADMIN_PASSWORD`를 두지 않고, 비밀번호 원문은 관리자 본인만 알게 한다.
+
+| 수락 기준                                                                                                             | 상태                                     |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `npm run hash-password`로 비밀번호를 화면에 표시하지 않고 `ADMIN_PASSWORD_HASH`(scrypt)와 `SESSION_SECRET`을 생성한다 | ✅ `scripts/hash-password.mjs`           |
+| 해시와 32자 이상 `SESSION_SECRET`이 있으면 해시로 로그인하고, 평문 `ADMIN_PASSWORD`는 무시한다                        | ✅ `src/lib/env.ts` `getAdminAuthConfig` |
+| 세션 쿠키는 `SESSION_SECRET`+해시로 서명해, 해시가 공개돼도 쿠키를 위조할 수 없다                                     | ✅ `src/lib/auth/session.ts`             |
+| 로컬 개발은 평문 `ADMIN_PASSWORD`(8자 이상)로 계속 로그인할 수 있다                                                   | ✅                                       |
+| 설정이 없으면 배포용·로컬용 설정 방법을 안내한다                                                                      | ✅ `admin-password-notice.tsx`           |
+
+### F024: 신고하기 및 신고 관리
+
+**상태 흐름**: 작성(신고 등록) → 접수(관리자가 "접수" 클릭) → 처리완료(관리자 답변 등록)
+
+| 수락 기준                                                                                                        | 상태                                          |
+| ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 견적서·이용 안내 화면 상단에 "신고하기"·"내 신고 조회" 버튼이 있다                                               | ✅ `src/components/layout/public-header.tsx`  |
+| 견적서와 무관한 일반 신고로 제목·내용·조회 비밀번호를 입력해 등록하고, 등록 후 신고 번호와 작성 내용을 보여 준다 | ✅ `/report`, `report-form.tsx`               |
+| 신고 번호 + 조회 비밀번호로 내 신고의 진행 단계와 관리자 답변을 확인한다                                         | ✅ `/report/lookup`, `report-lookup.tsx`      |
+| 신고 화면에서 보던 견적서(또는 이용 안내)로 돌아갈 수 있다                                                       | ✅ `?from=` (견적서·이용 안내 경로만 허용)    |
+| 관리자 "신고 관리"에서 상태 필터·건수와 함께 목록을 보고, 상세에서 접수·답변 등록(처리완료)·답변 수정을 한다     | ✅ `/admin/reports`, `report-admin-panel.tsx` |
+| 상태 전환 규칙(작성 → 접수 → 처리완료)을 서버에서 검증한다                                                       | ✅ `report.service.ts`                        |
+| 조회 비밀번호는 해시로만 저장하고, 작성은 IP당 10분 5건, 조회 실패는 IP당 10분 10회로 제한한다                   | ✅ `src/app/report/actions.ts`                |
+| 신고 DB 미설정 시 "준비 중" 안내를 표시한다                                                                      | ✅ `report-unavailable.tsx`                   |
+
+**Notion 설정**: 연동에 공유한 페이지에서 `npm run setup:report-db -- <페이지 URL>` 실행 → 출력된 `NOTION_REPORT_DATABASE_ID`를 `.env.local`·Vercel에 추가
 
 ## 개발 워크플로우
 
@@ -200,6 +233,22 @@
   - ✅ 잘못된 비밀번호, Notion 키 오류 에러 화면, 클립보드 권한 거부 확인
   - 미실행: 견적서 0건 빈 상태, 로그인 5회 실패 차단, 실제 Notion 429 재시도
 
+### Phase 9: 운영 보완 및 신고 기능 ✅
+
+- **Task 024: 관리자 해시 비밀번호 로그인 (F023)** ✅ - 완료 (`tasks/024-admin-password-hash.md`)
+  - ✅ scrypt 해시 유틸(`src/lib/auth/password-hash.ts`)과 생성 스크립트(`npm run hash-password`)
+  - ✅ `ADMIN_PASSWORD_HASH` + `SESSION_SECRET` 우선, 평문 `ADMIN_PASSWORD`는 로컬용으로 유지
+
+- **Task 025: 클라이언트 견적서 화면 격리 (F020 보완)** ✅ - 완료 (`tasks/025-client-view-isolation.md`)
+  - ✅ 공개 `/invoice/[id]`에서 관리자 링크 제거, 관리자용 상세 `/admin/invoices/[id]` 추가(목록으로·링크 복사·클라이언트 화면)
+  - ✅ 견적서 본문 `InvoiceView` 공용 컴포넌트
+
+- **Task 026: 신고하기·신고 관리 (F024)** ✅ - 완료 (`tasks/026-report.md`)
+  - ✅ Notion 신고 DB 생성 스크립트(`npm run setup:report-db`), 신고 서비스(`report.service.ts`)
+  - ✅ 신고 작성·내 신고 조회(`/report`, `/report/lookup`), 상단 바 버튼과 돌아가기
+  - ✅ 관리자 신고 관리(`/admin/reports`, `/admin/reports/[id]`): 접수·답변 등록·답변 수정
+  - ✅ 요청 제한 공용 모듈(`src/lib/rate-limiter.ts`), Notion 재시도 공용 모듈(`src/lib/notion/retry.ts`)
+
 ## Playwright MCP 테스트 시나리오
 
 전제: `npm run dev` 실행, `.env.local`에 `NOTION_API_KEY`, `NOTION_DATABASE_ID`, `ADMIN_PASSWORD` 설정, 견적서 1건 이상 존재.
@@ -233,12 +282,24 @@
 6. 다크 상태에서 PDF 다운로드 → 응답 `Content-Type: application/pdf`, 생성된 PDF가 흰 배경임을 확인
 7. `browser_emulate_media`로 `media: print` → 라이트 색상으로 렌더링 확인
 
+### F024 시나리오 (Task 026)
+
+1. 견적서 화면 → "신고하기" → URL에 `?from=/invoice/<ID>`, 빈 제출 시 검증 메시지
+2. 제목·내용·조회 비밀번호 입력 → "신고 완료" → 신고 번호(`RPT-YYMMDD-XXXX`)와 상태 "작성" 표시
+3. "내 신고 조회로 이동" → 번호 미리 채움, 틀린 비밀번호는 거부, 맞으면 상태·내용 표시
+4. 관리자 "신고 관리" → 필터 건수 확인 → 상세 → "접수" → 신고자 화면 "접수"
+5. 빈 답변 검증 → 답변 등록 → 관리자·신고자 화면 모두 "처리완료"와 답변 표시, 필터 건수 갱신
+6. 신고 화면 "돌아가기" → 원래 견적서, `?from=/admin`처럼 허용되지 않은 경로는 돌아가기 링크 없음
+7. 375px에서 가로 스크롤 없음
+
 ## 결정 사항
 
 1. **관리자 경로**: 목록을 `/admin`으로 옮기고 `/`를 리다이렉트할지, `/`를 관리자 목록으로 유지하고 레이아웃만 씌울지. 이 로드맵은 `/admin` 분리를 전제로 작성함.
 2. **배포 도메인**: `NEXT_PUBLIC_APP_URL` 환경 변수 + `window.location.origin` 폴백(권장) / 환경 변수만 / origin만.
 3. **`next-themes` 도입**: 권장. 미도입 시 Task 019에서 인라인 스크립트·시스템 감지를 직접 구현.
-4. **견적서 조회 페이지의 테마 토글 노출**: 클라이언트 화면에도 토글을 둘지(현재 기준: 둔다), 시스템 설정만 따를지.
+4. **관리자 비밀번호**: 배포 환경은 해시(`ADMIN_PASSWORD_HASH`) + `SESSION_SECRET` 방식으로 결정(2026-11-23).
+5. **신고 방식**: 견적서와 무관한 일반 신고, 신고자는 신고 번호 + 조회 비밀번호로 조회, 저장소는 Notion 신고 DB로 결정(2026-11-23).
+6. **견적서 조회 페이지의 테마 토글 노출**: 클라이언트 화면에도 토글을 둘지(현재 기준: 둔다), 시스템 설정만 따를지.
 
 ## 기술적 의존성 관계
 
@@ -261,12 +322,12 @@ graph TD
 
 ## 향후 고려 사항 (범위 외)
 
-이번 3가지 요구사항에 직접 필요하지 않아 Task에서 제외한 항목이다. 필요 시 Task 024 이후 번호로 추가한다.
+이번 3가지 요구사항에 직접 필요하지 않아 Task에서 제외한 항목이다. 필요 시 Task 027 이후 번호로 추가한다.
 
 - **목록 고도화 (v3.1 Task 014·015 미구현분)**: 페이지네이션 UI, 컬럼 정렬, 발행일 날짜 범위 필터, 검색어 하이라이팅, URL 쿼리 기반 검색 상태·디바운싱
 - **링크 공유 확장 (v3.1 Task 016·018)**: 짧은 URL, QR 코드, 메일(`mailto`)·카카오톡·텔레그램 등 메신저 공유 버튼, 링크 미리보기 메타데이터, 링크 조회수 통계
 - **다크모드 확장 (v3.1 Task 021)**: 다크모드 설정 페이지, 테마 전환 애니메이션
-- **보안·운영**: 세션 서명 키 분리(`SESSION_SECRET`), 메모리 기반 속도 제한의 Redis(Upstash) 전환, CSP 헤더, GitHub Actions CI, Husky + lint-staged 설정(CLAUDE.md에는 명시되어 있으나 `package.json`에 없음)
+- **보안·운영**: 메모리 기반 속도 제한(로그인·신고 작성·조회 포함)의 Redis(Upstash) 전환, CSP 헤더, GitHub Actions CI, Husky + lint-staged 설정(CLAUDE.md에는 명시되어 있으나 `package.json`에 없음)
 - **문서 정합성**: `docs/admin-guide.md`, `docs/api-documentation.md`가 실제로 없는 기능(`/admin-login`, `SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`, `generateInvoiceUrl`, `useClipboard`, `CopyButton`, `ShareButton` 등)을 설명하고 있어 재작성 필요. 이번 고도화 완료 시점에 실제 구현 기준으로 맞추는 것을 권장
 - **PRD 향후 개선 방향**: 견적서 상태 변경(클라이언트 승인/거절 응답), 열람 트래킹, 이메일 자동 발송(Resend), 만료 알림, 다중 템플릿, 다국어, 전자 서명, 버전 관리
 - **수치 성공 지표**: v3.1의 "관리자 작업 효율 30% 향상" 등은 측정 근거가 없어 제외. 필요 시 Vercel Analytics 도입 후 기준선을 측정해 설정
@@ -287,6 +348,6 @@ graph TD
 
 ---
 
-**문서 버전**: v4.0
+**문서 버전**: v4.1
 **최종 업데이트**: 2026-11-23
-**진행 상황**: MVP(Task 001~012), Phase 5(Task 013~015), 고도화 Task 016~023 완료 (8/8)
+**진행 상황**: MVP(Task 001~012), Phase 5(Task 013~015), 고도화 Task 016~023, 운영 보완·신고 Task 024~026 완료
