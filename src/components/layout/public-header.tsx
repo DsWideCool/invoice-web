@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Flag, Search } from "lucide-react";
+import { ArrowLeft, Flag, List } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -44,8 +44,9 @@ function HeaderBar({ returnPath, showBack }: HeaderBarProps) {
           </Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link href={withReturnPath("/report/lookup", returnPath)}>
-            <Search aria-hidden />내 신고 조회
+          <Link href={withReturnPath("/report/list", returnPath)}>
+            <List aria-hidden />
+            신고 목록
           </Link>
         </Button>
         <ThemeToggle />
@@ -67,7 +68,7 @@ function PublicHeaderInner() {
   return <HeaderBar returnPath={returnPath} showBack={isReportPage} />;
 }
 
-// 클라이언트용 화면(견적서·이용 안내·신고) 상단 바: 돌아가기 · 신고하기 · 내 신고 조회 · 테마 토글
+// 클라이언트용 화면(견적서·이용 안내·신고) 상단 바: 돌아가기 · 신고하기 · 신고 목록 · 테마 토글
 export function PublicHeader() {
   return (
     // useSearchParams는 정적 페이지에서 Suspense 경계가 필요

@@ -39,7 +39,7 @@ export default async function AdminReportDetailPage({
           신고 목록으로
         </Link>
       </Button>
-      <ReportDetail report={report} />
+      <ReportDetail report={report} showReportNumber />
       <ReportAdminPanel report={report} />
     </PageContainer>
   );

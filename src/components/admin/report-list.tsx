@@ -93,7 +93,7 @@ export function ReportList({ reports }: { reports: ReportSummary[] }) {
                       <ReportStatusBadge status={report.status} />
                     </div>
                     <span className="text-muted-foreground truncate text-xs">
-                      <span className="font-mono">{report.reportNumber}</span> ·{" "}
+                      {report.author || "익명"} ·{" "}
                       {formatDateTime(report.createdAt)}
                     </span>
                   </div>
@@ -113,6 +113,7 @@ export function ReportList({ reports }: { reports: ReportSummary[] }) {
                 <TableRow>
                   <TableHead className="pl-4">신고 번호</TableHead>
                   <TableHead>제목</TableHead>
+                  <TableHead>작성자</TableHead>
                   <TableHead>작성일시</TableHead>
                   <TableHead className="pr-4">상태</TableHead>
                 </TableRow>
@@ -132,6 +133,7 @@ export function ReportList({ reports }: { reports: ReportSummary[] }) {
                         {report.title}
                       </Link>
                     </TableCell>
+                    <TableCell>{report.author || "익명"}</TableCell>
                     <TableCell>{formatDateTime(report.createdAt)}</TableCell>
                     <TableCell className="pr-4">
                       <ReportStatusBadge status={report.status} />

@@ -31,6 +31,7 @@ try {
     properties: {
       제목: { title: {} },
       "신고 번호": { rich_text: {} },
+      작성자: { rich_text: {} },
       내용: { rich_text: {} },
       상태: {
         select: {

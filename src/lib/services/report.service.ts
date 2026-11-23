@@ -8,15 +8,18 @@ import {
   isNotionClientError,
 } from "@notionhq/client";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+import { revalidateTag, unstable_cache } from "next/cache";
 
 import { hashPassword, verifyPasswordHash } from "@/lib/auth/password-hash";
 import { getReportDatabaseId } from "@/lib/env";
+import { maskName } from "@/lib/mask";
 import { getNotionClient } from "@/lib/notion/client";
 import { getDate, getStatusName, getText } from "@/lib/notion/properties";
 import { withRateLimitRetry } from "@/lib/notion/retry";
 import { normalizeNotionId } from "@/lib/services/invoice.service";
 import {
   REPORT_STATUSES,
+  type PublicReportItem,
   type Report,
   type ReportStatus,
   type ReportSummary,
@@ -26,6 +29,7 @@ import {
 export const REPORT_PROPS = {
   title: "제목",
   number: "신고 번호",
+  author: "작성자",
   content: "내용",
   status: "상태",
   answer: "답변",
@@ -33,7 +37,11 @@ export const REPORT_PROPS = {
   passwordHash: "조회 비밀번호 해시",
 } as const;
 
-// 신고 번호 랜덤부: 헷갈리는 문자(0·O·1·I) 제외
+// 신고 목록 캐시 (작성·접수·답변 시 태그로 즉시 무효화)
+const REPORT_CACHE_TAG = "reports";
+const REPORT_CACHE_SECONDS = 30;
+
+// 관리용 번호 랜덤부: 헷갈리는 문자(0·O·1·I) 제외
 const NUMBER_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 export class ReportNotConfiguredError extends Error {
@@ -71,6 +79,7 @@ function toReport(page: PageObjectResponse): Report {
     id: page.id,
     reportNumber: getText(props, REPORT_PROPS.number),
     title: getText(props, REPORT_PROPS.title),
+    author: getText(props, REPORT_PROPS.author),
     // 상태가 비어 있으면 갓 작성된 신고로 취급
     status: isReportStatus(status) ? status : "작성",
     createdAt: page.created_time,
@@ -85,13 +94,14 @@ function toSummary(report: Report): ReportSummary {
     id: report.id,
     reportNumber: report.reportNumber,
     title: report.title,
+    author: report.author,
     status: report.status,
     createdAt: report.createdAt,
     answeredAt: report.answeredAt,
   };
 }
 
-// 신고 번호 생성: RPT-YYMMDD(한국 시간)-XXXX
+// 관리용 번호 생성: RPT-YYMMDD(한국 시간)-XXXX
 function generateReportNumber(): string {
   const date = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
@@ -108,9 +118,7 @@ function generateReportNumber(): string {
   return `RPT-${date}-${suffix}`;
 }
 
-async function findPageByNumber(
-  reportNumber: string,
-): Promise<PageObjectResponse | null> {
+async function isReportNumberTaken(reportNumber: string): Promise<boolean> {
   const response = await withRateLimitRetry(() =>
     getNotionClient().databases.query({
       database_id: getDatabaseIdOrThrow(),
@@ -121,12 +129,17 @@ async function findPageByNumber(
       page_size: 1,
     }),
   );
-  const page = response.results[0];
-  return page && isFullPage(page) ? page : null;
+  return response.results.length > 0;
+}
+
+// 신고 목록 캐시 무효화 (작성·접수·답변 후 호출)
+function invalidateReports(): void {
+  revalidateTag(REPORT_CACHE_TAG);
 }
 
 // 신고 작성 (상태: 작성) — 조회 비밀번호는 해시로만 저장
 export async function createReport(input: {
+  author: string;
   title: string;
   content: string;
   password: string;
@@ -135,7 +148,7 @@ export async function createReport(input: {
 
   // 번호 충돌 시 최대 3번 다시 생성
   let reportNumber = generateReportNumber();
-  for (let i = 0; i < 3 && (await findPageByNumber(reportNumber)); i++) {
+  for (let i = 0; i < 3 && (await isReportNumberTaken(reportNumber)); i++) {
     reportNumber = generateReportNumber();
   }
 
@@ -145,6 +158,7 @@ export async function createReport(input: {
       properties: {
         [REPORT_PROPS.title]: { title: richText(input.title) },
         [REPORT_PROPS.number]: { rich_text: richText(reportNumber) },
+        [REPORT_PROPS.author]: { rich_text: richText(input.author) },
         [REPORT_PROPS.content]: { rich_text: richText(input.content) },
         [REPORT_PROPS.status]: { select: { name: "작성" } },
         [REPORT_PROPS.passwordHash]: {
@@ -154,32 +168,12 @@ export async function createReport(input: {
     }),
   );
   if (!isFullPage(page)) throw new Error("신고를 저장하지 못했습니다.");
+  invalidateReports();
   return toReport(page);
 }
 
-// 존재하지 않는 신고 조회 시 비교용 더미 해시 (처음 필요할 때 1회 생성)
-let dummyHash: string | null = null;
-function getDummyHash(): string {
-  dummyHash ??= hashPassword("dummy-password-for-timing");
-  return dummyHash;
-}
-
-// 신고 번호 + 조회 비밀번호로 내 신고 조회 (불일치 시 null)
-export async function lookupReport(
-  reportNumber: string,
-  password: string,
-): Promise<Report | null> {
-  const page = await findPageByNumber(reportNumber);
-  const stored = page
-    ? getText(page.properties, REPORT_PROPS.passwordHash)
-    : "";
-  // 신고가 없어도 해시 검증 시간을 비슷하게 맞춰 존재 여부 노출을 줄임
-  const matched = verifyPasswordHash(password, stored || getDummyHash());
-  return page && stored && matched ? toReport(page) : null;
-}
-
-// 관리자: 전체 신고 목록 (최신순)
-export async function listReports(): Promise<ReportSummary[]> {
+// 신고 DB 전체 조회 (최신순)
+async function fetchReports(): Promise<ReportSummary[]> {
   const databaseId = getDatabaseIdOrThrow();
   const reports: ReportSummary[] = [];
   let cursor: string | undefined;
@@ -202,8 +196,33 @@ export async function listReports(): Promise<ReportSummary[]> {
   return reports;
 }
 
-// 관리자: 신고 상세 (신고 DB 소속 페이지만 허용)
-export async function getReport(id: string): Promise<Report | null> {
+const getCachedReports = unstable_cache(fetchReports, ["report-list"], {
+  revalidate: REPORT_CACHE_SECONDS,
+  tags: [REPORT_CACHE_TAG],
+});
+
+// 관리자: 전체 신고 목록 (최신순, 작성자 실명 포함)
+export async function listReports(): Promise<ReportSummary[]> {
+  return getCachedReports();
+}
+
+// 공개 게시판: 작성자 이름을 가린 목록 (최신순, 순번은 오래된 글이 1번)
+export async function listPublicReports(): Promise<PublicReportItem[]> {
+  const reports = await getCachedReports();
+  return reports.map((report, index) => ({
+    id: report.id,
+    seq: reports.length - index,
+    title: report.title,
+    maskedAuthor: maskName(report.author),
+    status: report.status,
+    createdAt: report.createdAt,
+  }));
+}
+
+// 신고 페이지 조회 (신고 DB 소속 페이지만 허용, 해시 포함 원본)
+async function retrieveReportPage(
+  id: string,
+): Promise<PageObjectResponse | null> {
   const pageId = normalizeNotionId(id);
   if (!pageId) return null;
   const databaseId = getDatabaseIdOrThrow();
@@ -213,13 +232,9 @@ export async function getReport(id: string): Promise<Report | null> {
       getNotionClient().pages.retrieve({ page_id: pageId }),
     );
     if (!isFullPage(page) || page.parent.type !== "database_id") return null;
-    if (
-      normalizeNotionId(page.parent.database_id) !==
-      normalizeNotionId(databaseId)
-    ) {
-      return null;
-    }
-    return toReport(page);
+    const parentId = normalizeNotionId(page.parent.database_id);
+    if (parentId !== normalizeNotionId(databaseId)) return null;
+    return page;
   } catch (error) {
     if (
       isNotionClientError(error) &&
@@ -230,6 +245,49 @@ export async function getReport(id: string): Promise<Report | null> {
     }
     throw error;
   }
+}
+
+// 관리자: 신고 상세
+export async function getReport(id: string): Promise<Report | null> {
+  const page = await retrieveReportPage(id);
+  return page ? toReport(page) : null;
+}
+
+// 공개 게시판: 비밀번호 입력 전 보여줄 글 정보 (내용·답변·실명 제외)
+export async function getPublicReportItem(
+  id: string,
+): Promise<Omit<PublicReportItem, "seq"> | null> {
+  const page = await retrieveReportPage(id);
+  if (!page) return null;
+  const report = toReport(page);
+  return {
+    id: report.id,
+    title: report.title,
+    maskedAuthor: maskName(report.author),
+    status: report.status,
+    createdAt: report.createdAt,
+  };
+}
+
+// 존재하지 않는 신고 조회 시 비교용 더미 해시 (처음 필요할 때 1회 생성)
+let dummyHash: string | null = null;
+function getDummyHash(): string {
+  dummyHash ??= hashPassword("dummy-password-for-timing");
+  return dummyHash;
+}
+
+// 공개 게시판: 조회 비밀번호가 맞으면 신고 상세 반환 (불일치 시 null)
+export async function unlockReport(
+  id: string,
+  password: string,
+): Promise<Report | null> {
+  const page = await retrieveReportPage(id);
+  const stored = page
+    ? getText(page.properties, REPORT_PROPS.passwordHash)
+    : "";
+  // 신고가 없어도 해시 검증 시간을 비슷하게 맞춤
+  const matched = verifyPasswordHash(password, stored || getDummyHash());
+  return page && stored && matched ? toReport(page) : null;
 }
 
 async function getReportOrThrow(id: string): Promise<Report> {
@@ -250,6 +308,7 @@ export async function acceptReport(id: string): Promise<void> {
       properties: { [REPORT_PROPS.status]: { select: { name: "접수" } } },
     }),
   );
+  invalidateReports();
 }
 
 // 관리자: 답변 등록·수정 (접수/처리완료 → 처리완료)
@@ -270,4 +329,5 @@ export async function answerReport(id: string, answer: string): Promise<void> {
       },
     }),
   );
+  invalidateReports();
 }

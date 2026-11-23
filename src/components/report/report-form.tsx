@@ -27,7 +27,7 @@ import {
 import { withReturnPath } from "@/lib/return-path";
 import type { Report } from "@/types/report";
 
-// 신고 완료 화면: 신고 번호 안내 + 내가 작성한 내용
+// 신고 완료 화면: 신고 목록 안내 + 내가 작성한 내용
 function ReportSubmitted({
   report,
   returnPath,
@@ -45,23 +45,12 @@ function ReportSubmitted({
           />
           <h2 className="text-lg font-semibold">신고가 등록되었습니다</h2>
           <p className="text-muted-foreground text-sm">
-            아래 신고 번호와 입력한 조회 비밀번호로 처리 상태와 답변을 확인할 수
-            있습니다. 신고 번호를 꼭 기록해 두세요.
-          </p>
-          <p
-            className="bg-muted rounded-lg px-4 py-2 font-mono text-lg font-semibold tracking-wider select-all"
-            aria-label="신고 번호"
-          >
-            {report.reportNumber}
+            신고 목록에서 내 글을 선택하고 조회 비밀번호를 입력하면 처리 상태와
+            답변을 확인할 수 있습니다. 조회 비밀번호를 잊지 않도록 해 주세요.
           </p>
           <Button asChild variant="outline">
-            <Link
-              href={withReturnPath(
-                `/report/lookup?number=${encodeURIComponent(report.reportNumber)}`,
-                returnPath,
-              )}
-            >
-              내 신고 조회로 이동
+            <Link href={withReturnPath("/report/list", returnPath)}>
+              신고 목록으로 이동
             </Link>
           </Button>
         </CardContent>
@@ -74,7 +63,7 @@ function ReportSubmitted({
   );
 }
 
-// 신고 작성 폼 (제목·내용·조회 비밀번호)
+// 신고 작성 폼 (작성자·제목·내용·조회 비밀번호)
 interface ReportFormProps {
   // 신고 후 돌아갈 견적서·이용 안내 경로 (검증된 값)
   returnPath: string | null;
@@ -91,6 +80,7 @@ export function ReportForm({ returnPath }: ReportFormProps) {
   } = useForm<ReportCreateInput>({
     resolver: zodResolver(reportCreateSchema),
     defaultValues: {
+      author: "",
       title: "",
       content: "",
       password: "",
@@ -129,6 +119,21 @@ export function ReportForm({ returnPath }: ReportFormProps) {
           className="flex flex-col gap-5"
           noValidate
         >
+          <FormField
+            id="author"
+            label="작성자 이름"
+            error={errors.author?.message}
+            description="신고 목록에는 민*성처럼 일부만 표시됩니다."
+          >
+            <Input
+              {...getFieldAria("author", errors.author?.message)}
+              placeholder="예: 홍길동"
+              autoComplete="name"
+              maxLength={20}
+              {...register("author")}
+            />
+          </FormField>
+
           <FormField id="title" label="제목" error={errors.title?.message}>
             <Input
               {...getFieldAria("title", errors.title?.message)}

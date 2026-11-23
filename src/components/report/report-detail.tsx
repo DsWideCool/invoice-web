@@ -50,19 +50,27 @@ interface ReportDetailProps {
   report: Report;
   // 답변이 없을 때 보여줄 안내 (신고자 화면/관리자 화면에 따라 다름)
   emptyAnswerMessage?: string;
+  // 관리용 번호 표시 (관리자 화면 전용)
+  showReportNumber?: boolean;
 }
 
-// 신고 상세 카드: 번호·상태·진행 단계·내용·답변
+// 신고 상세 카드: 작성자·상태·진행 단계·내용·답변
 export function ReportDetail({
   report,
   emptyAnswerMessage = "아직 답변이 등록되지 않았습니다.",
+  showReportNumber = false,
 }: ReportDetailProps) {
   return (
     <Card>
       <CardHeader className="gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-muted-foreground font-mono text-sm">
-            {report.reportNumber}
+          <span className="text-muted-foreground text-sm">
+            작성자 {report.author || "익명"}
+            {showReportNumber && report.reportNumber && (
+              <span className="ml-2 font-mono text-xs">
+                {report.reportNumber}
+              </span>
+            )}
           </span>
           <ReportStatusBadge status={report.status} />
         </div>

@@ -3,9 +3,6 @@ import { z } from "zod";
 // Notion rich_text 한 조각의 최대 길이에 맞춤
 export const REPORT_TEXT_MAX_LENGTH = 2000;
 
-// 신고 번호 형식: RPT-YYMMDD-XXXX
-export const REPORT_NUMBER_PATTERN = /^RPT-\d{6}-[A-Z0-9]{4}$/;
-
 const passwordSchema = z
   .string()
   .min(4, "조회 비밀번호는 4자 이상이어야 합니다.")
@@ -14,6 +11,11 @@ const passwordSchema = z
 // 신고 작성 폼 (클라이언트·서버 공용)
 export const reportCreateSchema = z
   .object({
+    author: z
+      .string()
+      .trim()
+      .min(2, "작성자 이름을 2자 이상 입력해 주세요.")
+      .max(20, "작성자 이름은 20자 이하로 입력해 주세요."),
     title: z
       .string()
       .trim()
@@ -37,20 +39,12 @@ export const reportCreateSchema = z
 
 export type ReportCreateInput = z.infer<typeof reportCreateSchema>;
 
-// 내 신고 조회 폼
-export const reportLookupSchema = z.object({
-  reportNumber: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(
-      REPORT_NUMBER_PATTERN,
-      "신고 번호 형식을 확인해 주세요. (예: RPT-261123-K7QF)",
-    ),
+// 신고 글 열기 (게시판에서 글 선택 후 조회 비밀번호 입력)
+export const reportUnlockSchema = z.object({
   password: z.string().min(1, "조회 비밀번호를 입력해 주세요."),
 });
 
-export type ReportLookupInput = z.input<typeof reportLookupSchema>;
+export type ReportUnlockInput = z.infer<typeof reportUnlockSchema>;
 
 // 관리자 답변 폼
 export const reportAnswerSchema = z.object({

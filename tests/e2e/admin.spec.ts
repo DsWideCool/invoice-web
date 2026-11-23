@@ -84,11 +84,12 @@
  * 전제: .env.local에 NOTION_REPORT_DATABASE_ID 설정 (npm run setup:report-db로 생성)
  *
  * 1. 견적서 화면 → "신고하기" → URL에 ?from=/invoice/<ID>, 빈 제출 시 검증 메시지
- * 2. #title·#content·#password·#passwordConfirm 입력 → "신고 완료"
- *    → "신고가 등록되었습니다", 신고 번호(aria-label "신고 번호") RPT-YYMMDD-XXXX, 상태 배지 "작성"
- * 3. "내 신고 조회로 이동" → #reportNumber 미리 채움, 틀린 비밀번호는
- *    "신고 번호 또는 조회 비밀번호가 올바르지 않습니다.", 맞는 비밀번호는 상세 표시
- * 4. 관리자 /admin/reports → 상태 필터 건수 확인 → 테이블 제목 링크로 상세
+ * 2. #author·#title·#content·#password·#passwordConfirm 입력 → "신고 완료"
+ *    → "신고가 등록되었습니다", 상태 배지 "작성" (신고자 화면에 RPT- 관리용 번호 없음)
+ * 3. "신고 목록으로 이동" → /report/list?from=… 에서 내 글이 "민*성"으로 표시,
+ *    page.content()에 실명이 없어야 함 → 글 선택 → /report/list/<ID>
+ *    #unlockPassword 틀리면 "조회 비밀번호가 올바르지 않습니다.", 맞으면 "작성자 <실명>"·내용 표시
+ * 4. 관리자 /admin/reports → 작성자 실명 열 확인 → 테이블 제목 링크로 상세
  *    (신고 번호는 모바일 카드와 테이블에 모두 있으므로 getByRole("cell")로 선택)
  * 5. "접수" → "신고를 접수했습니다" 토스트, #answer 표시, 신고자 조회 시 "접수"
  *    (카드 제목은 heading 역할이 아니므로 #answer 또는 버튼으로 대기)
