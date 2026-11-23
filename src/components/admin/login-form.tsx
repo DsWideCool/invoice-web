@@ -19,7 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginInput } from "@/lib/validations/login";
 
-export function LoginForm() {
+interface LoginFormProps {
+  // 로그인 성공 후 이동할 경로 (서버에서 검증된 상대 경로)
+  redirectTo: string;
+}
+
+export function LoginForm({ redirectTo }: LoginFormProps) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -38,8 +43,8 @@ export function LoginForm() {
       setServerError(result.error);
       return;
     }
-    // 세션 쿠키가 설정되었으므로 서버 컴포넌트를 다시 렌더링
-    router.refresh();
+    // 세션 쿠키가 설정되었으므로 요청했던 관리자 화면으로 이동
+    router.replace(redirectTo);
   };
 
   const errorMessage = errors.password?.message ?? serverError;

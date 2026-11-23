@@ -3,10 +3,15 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
+import {
+  ADMIN_LOGIN_PATH,
+  isSessionTokenUnexpired,
+  SESSION_COOKIE,
+} from "@/lib/auth/constants";
 import { getAdminPassword } from "@/lib/env";
 
-const SESSION_COOKIE = "admin_session";
 // 세션 유지 기간: 7일
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
@@ -68,6 +73,10 @@ export async function isAdminAuthenticated(): Promise<boolean> {
 
   if (!safeEqual(signature, sign(payload, password))) return false;
 
-  const expiresAt = Number(payload.split(".")[1]);
-  return Number.isFinite(expiresAt) && expiresAt > Date.now();
+  return isSessionTokenUnexpired(payload);
+}
+
+// 관리자 전용 화면에서 호출: 미인증이면 로그인 화면으로 이동
+export async function requireAdmin(): Promise<void> {
+  if (!(await isAdminAuthenticated())) redirect(ADMIN_LOGIN_PATH);
 }

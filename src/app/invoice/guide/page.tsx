@@ -42,7 +42,7 @@ const steps = [
 
 export default function GuidePage() {
   return (
-    <PageContainer>
+    <PageContainer className="pt-2 sm:pt-4">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           견적서 이용 안내

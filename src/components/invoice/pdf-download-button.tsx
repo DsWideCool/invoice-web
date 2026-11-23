@@ -60,7 +60,7 @@ export function PdfDownloadButton({
   };
 
   return (
-    <div className="flex flex-col items-stretch gap-2 sm:items-end">
+    <div className="flex flex-col items-stretch gap-2 sm:items-end print:hidden">
       <Button
         size="lg"
         onClick={handleDownload}

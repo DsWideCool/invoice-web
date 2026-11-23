@@ -2,12 +2,14 @@
 
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import {
   clearLoginFailures,
   getLoginBlockSeconds,
   recordLoginFailure,
 } from "@/lib/auth/login-rate-limit";
+import { ADMIN_LOGIN_PATH } from "@/lib/auth/constants";
 import {
   createAdminSession,
   deleteAdminSession,
@@ -58,9 +60,10 @@ export async function loginAction(input: LoginInput): Promise<ActionResult> {
   return {};
 }
 
-// 관리자 로그아웃
+// 관리자 로그아웃 후 로그인 화면으로 이동
 export async function logoutAction(): Promise<void> {
   await deleteAdminSession();
+  redirect(ADMIN_LOGIN_PATH);
 }
 
 // Notion 캐시를 비워 최신 견적서를 즉시 다시 조회

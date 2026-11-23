@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Noto_Sans_KR } from "next/font/google";
 
+import { Providers } from "./providers";
+
 import "./globals.css";
 
 // 한글 본문 폰트 (globals.css의 --font-sans로 연결)
@@ -31,11 +33,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    // next-themes가 hydration 전에 html의 class를 바꾸므로 해당 경고만 억제
+    <html lang="ko" suppressHydrationWarning>
       <body
         className={`${notoSansKr.variable} ${geistMono.variable} bg-muted/40 min-h-dvh antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

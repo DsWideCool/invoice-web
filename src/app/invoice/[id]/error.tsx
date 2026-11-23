@@ -19,7 +19,7 @@ export default function InvoiceError({ error, reset }: InvoiceErrorProps) {
   }, [error]);
 
   return (
-    <PageContainer className="min-h-dvh justify-center">
+    <PageContainer className="min-h-[70dvh] justify-center">
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-8 text-center">
           <AlertTriangle className="text-destructive size-12" aria-hidden />

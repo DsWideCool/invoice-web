@@ -4,6 +4,7 @@ import { ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { CopyLinkButton } from "@/components/admin/copy-link-button";
 import { StatusBadge } from "@/components/invoice/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getInvoicePath } from "@/lib/invoice-url";
 import {
   INVOICE_STATUSES,
   type InvoiceListItem,
@@ -28,11 +30,6 @@ const STATUS_FILTERS: StatusFilter[] = ["전체", ...INVOICE_STATUSES];
 
 interface InvoiceListProps {
   invoices: InvoiceListItem[];
-}
-
-// 상세 페이지 URL은 하이픈 없는 32자리 ID 사용
-function getInvoiceHref(id: string): string {
-  return `/invoice/${id.replace(/-/g, "")}`;
 }
 
 function formatAmount(value: number | null): string {
@@ -108,10 +105,14 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
           {/* 모바일: 카드형 목록 */}
           <ul className="flex flex-col gap-2 sm:hidden">
             {filtered.map((invoice) => (
-              <li key={invoice.id}>
+              // 링크 영역 + 액션 버튼 구조 (<a> 안에 <button> 중첩 금지)
+              <li
+                key={invoice.id}
+                className="bg-card has-[a:hover]:bg-muted/50 flex items-center rounded-lg border transition-colors"
+              >
                 <Link
-                  href={getInvoiceHref(invoice.id)}
-                  className="bg-card hover:bg-muted/50 flex items-center gap-3 rounded-lg border p-4 transition-colors"
+                  href={getInvoicePath(invoice.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 py-4 pl-4"
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex items-center gap-2">
@@ -133,6 +134,11 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
                     aria-hidden
                   />
                 </Link>
+                <CopyLinkButton
+                  invoiceId={invoice.id}
+                  invoiceNumber={invoice.invoiceNumber}
+                  className="mx-2 shrink-0"
+                />
               </li>
             ))}
           </ul>
@@ -146,7 +152,10 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
                   <TableHead>클라이언트</TableHead>
                   <TableHead>발행일</TableHead>
                   <TableHead>상태</TableHead>
-                  <TableHead className="pr-4 text-right">총 금액</TableHead>
+                  <TableHead className="text-right">총 금액</TableHead>
+                  <TableHead className="w-12 pr-4">
+                    <span className="sr-only">링크 복사</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,7 +164,7 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
                     <TableCell className="pl-4 font-medium">
                       {/* after: 가상 요소로 링크 영역을 행 전체로 확장 */}
                       <Link
-                        href={getInvoiceHref(invoice.id)}
+                        href={getInvoicePath(invoice.id)}
                         className="after:absolute after:inset-0 hover:underline"
                       >
                         {invoice.invoiceNumber || "번호 없음"}
@@ -166,8 +175,16 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
                     <TableCell>
                       <StatusBadge status={invoice.status} />
                     </TableCell>
-                    <TableCell className="pr-4 text-right font-medium">
+                    <TableCell className="text-right font-medium">
                       {formatAmount(invoice.totalAmount)}
+                    </TableCell>
+                    <TableCell className="pr-4">
+                      {/* relative z-10: 행 전체 링크 오버레이 위에 배치해 클릭 시 상세로 이동하지 않음 */}
+                      <CopyLinkButton
+                        invoiceId={invoice.id}
+                        invoiceNumber={invoice.invoiceNumber}
+                        className="relative z-10"
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

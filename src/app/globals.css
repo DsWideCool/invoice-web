@@ -2,7 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* 다크 변형: .dark 하위에서 적용하되 인쇄 시에는 제외(인쇄물은 항상 라이트) */
+@custom-variant dark {
+  @media not print {
+    &:is(.dark *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -126,5 +133,44 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* 브라우저 기본 UI(스크롤바·폼 컨트롤)도 테마에 맞춤 */
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* 인쇄(Ctrl+P)는 테마와 무관하게 항상 라이트(흰 배경·검은 글씨) */
+@media print {
+  :root,
+  .dark {
+    color-scheme: light;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+  }
+
+  body {
+    background: white;
   }
 }

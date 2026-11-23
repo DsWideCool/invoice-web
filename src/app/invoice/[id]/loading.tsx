@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Notion 조회 중 표시되는 스켈레톤 UI
 export default function InvoiceLoading() {
   return (
-    <PageContainer aria-busy="true">
+    <PageContainer className="pt-2 sm:pt-4" aria-busy="true">
       <Card>
         <CardContent className="flex flex-col gap-6">
           <div className="flex justify-between">

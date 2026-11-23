@@ -11,6 +11,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ADMIN_HOME_PATH } from "@/lib/auth/constants";
 import { isAdminAuthenticated } from "@/lib/auth/session";
 import { getInvoice } from "@/lib/services/invoice.service";
 
@@ -40,10 +41,15 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
   const isAdmin = await isAdminAuthenticated();
 
   return (
-    <PageContainer>
+    <PageContainer className="pt-2 sm:pt-4">
       {isAdmin && (
-        <Button asChild variant="ghost" size="sm" className="self-start">
-          <Link href="/">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="self-start print:hidden"
+        >
+          <Link href={ADMIN_HOME_PATH}>
             <ArrowLeft />
             목록으로
           </Link>

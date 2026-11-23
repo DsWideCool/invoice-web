@@ -2,6 +2,7 @@ import { FileQuestion } from "lucide-react";
 import Link from "next/link";
 
 import { PageContainer } from "@/components/layout/page-container";
+import { CornerThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -9,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function NotFound() {
   return (
     <PageContainer className="min-h-dvh justify-center">
+      <CornerThemeToggle />
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-8 text-center">
           <FileQuestion className="text-muted-foreground size-12" aria-hidden />
@@ -23,14 +25,10 @@ export default function NotFound() {
               견적서를 보내주신 분께 올바른 링크를 다시 요청해 주세요.
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button asChild>
-              <Link href="/">홈으로 돌아가기</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/invoice/guide">이용 안내 보기</Link>
-            </Button>
-          </div>
+          {/* 404는 주로 클라이언트가 보게 되므로 관리자 화면으로 유도하지 않음 */}
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/invoice/guide">이용 안내 보기</Link>
+          </Button>
         </CardContent>
       </Card>
     </PageContainer>
