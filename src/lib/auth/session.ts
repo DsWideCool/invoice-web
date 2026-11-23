@@ -10,12 +10,12 @@ import {
   isSessionTokenUnexpired,
   SESSION_COOKIE,
 } from "@/lib/auth/constants";
-import { getAdminPassword } from "@/lib/env";
+import { verifyPasswordHash } from "@/lib/auth/password-hash";
+import { getAdminAuthConfig } from "@/lib/env";
 
 // 세션 유지 기간: 7일
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
-// 관리자 비밀번호를 키로 서명 (비밀번호를 바꾸면 기존 세션은 모두 무효)
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
@@ -26,21 +26,34 @@ function safeEqual(a: string, b: string): boolean {
   return bufferA.length === bufferB.length && timingSafeEqual(bufferA, bufferB);
 }
 
+// 관리자 로그인 기능 사용 가능 여부 (비밀번호·해시 설정 확인)
+export function isAdminLoginConfigured(): boolean {
+  return getAdminAuthConfig() !== null;
+}
+
 // 입력한 비밀번호가 관리자 비밀번호와 일치하는지 확인 (타이밍 공격 방지)
 export function verifyAdminPassword(input: string): boolean {
-  const password = getAdminPassword();
-  if (!password) return false;
-  // 길이가 달라도 비교 시간이 같도록 해시끼리 비교
-  return safeEqual(sign(input, "compare"), sign(password, "compare"));
+  const config = getAdminAuthConfig();
+  if (!config) return false;
+
+  const { credential } = config;
+  if (credential.type === "hash") {
+    return verifyPasswordHash(input, credential.hash);
+  }
+  // 길이가 달라도 비교 시간이 같도록 HMAC 값끼리 비교
+  return safeEqual(
+    sign(input, "compare"),
+    sign(credential.password, "compare"),
+  );
 }
 
 export async function createAdminSession(): Promise<void> {
-  const password = getAdminPassword();
-  if (!password) throw new Error("ADMIN_PASSWORD가 설정되지 않았습니다.");
+  const config = getAdminAuthConfig();
+  if (!config) throw new Error("관리자 비밀번호가 설정되지 않았습니다.");
 
   const expiresAt = Date.now() + SESSION_MAX_AGE_SECONDS * 1000;
   const payload = `admin.${expiresAt}`;
-  const token = `${payload}.${sign(payload, password)}`;
+  const token = `${payload}.${sign(payload, config.signingKey)}`;
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -59,8 +72,8 @@ export async function deleteAdminSession(): Promise<void> {
 
 // 유효한 관리자 세션인지 확인 (서명과 만료 시각 검증)
 export async function isAdminAuthenticated(): Promise<boolean> {
-  const password = getAdminPassword();
-  if (!password) return false;
+  const config = getAdminAuthConfig();
+  if (!config) return false;
 
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
@@ -71,7 +84,7 @@ export async function isAdminAuthenticated(): Promise<boolean> {
   const payload = token.slice(0, lastDot);
   const signature = token.slice(lastDot + 1);
 
-  if (!safeEqual(signature, sign(payload, password))) return false;
+  if (!safeEqual(signature, sign(payload, config.signingKey))) return false;
 
   return isSessionTokenUnexpired(payload);
 }

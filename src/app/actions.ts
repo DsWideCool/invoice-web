@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import {
@@ -17,19 +16,11 @@ import {
   verifyAdminPassword,
 } from "@/lib/auth/session";
 import { INVOICE_CACHE_TAG } from "@/lib/services/invoice.service";
+import { getRequestIp } from "@/lib/request-ip";
 import { loginSchema, type LoginInput } from "@/lib/validations/login";
 
 export interface ActionResult {
   error?: string;
-}
-
-async function getRequestIp(): Promise<string> {
-  const headerList = await headers();
-  return (
-    headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headerList.get("x-real-ip") ||
-    "unknown"
-  );
 }
 
 // 관리자 로그인

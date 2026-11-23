@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AdminPasswordNotice } from "@/components/admin/admin-password-notice";
 import { PageContainer } from "@/components/layout/page-container";
 import { CornerThemeToggle } from "@/components/theme-toggle";
-import { getAdminPassword } from "@/lib/env";
+import { isAdminLoginConfigured } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: {
@@ -18,7 +18,7 @@ export default function AdminRootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  if (!getAdminPassword()) {
+  if (!isAdminLoginConfigured()) {
     return (
       <PageContainer className="min-h-dvh justify-center">
         <CornerThemeToggle />

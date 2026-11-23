@@ -10,7 +10,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "check-all": "npm run typecheck && npm run lint && npm run format:check"
+    "check-all": "npm run typecheck && npm run lint && npm run format:check",
+    "hash-password": "node scripts/hash-password.mjs",
+    "setup:report-db": "node --env-file=.env.local scripts/setup-report-db.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^7.0.8",
